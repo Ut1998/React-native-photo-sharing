@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { StyleSheet, Text, View, Image, TouchableOpacity } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
+import uploadToAnonymousFilesAsync from "anonymous-files";
 
 import logo from "./assets/logo.png";
 import { Platform } from "expo-modules-core";
@@ -26,16 +27,23 @@ export default function App() {
       return;
     }
 
-    setSelectedImage({ localUri: pickerResult.uri });
+    if (Platform.OS === "web") {
+      let remoteUri = await uploadToAnonymousFilesAsync(pickerResult.uri);
+      setSelectedImage({ localUri: pickerResult.uri, remoteUri });
+    } else {
+      setSelectedImage({ localUri: pickerResult.uri, remoteUri: null });
+    }
   };
 
   const openShareDialogBox = async () => {
-    if (Platform.OS === "web") {
-      alert("Uh on, sharing isn't available on your platform");
+    if (!(await Sharing.isAvailableAsync())) {
+      alert(
+        `The image is available for sharing as: ${selectedImage.remoteUri}`
+      );
       return;
     }
 
-    await Sharing.shareAsync(selectedImage.localUri);
+    Sharing.shareAsync(selectedImage.localUri || selectedImage.remoteUri);
   };
 
   return (
@@ -49,7 +57,7 @@ export default function App() {
         <Text style={styles.buttonText}>Pick a photo</Text>
       </TouchableOpacity>
       {selectedImage !== null && (
-        <View style={styles.container}>
+        <View style={{ alignItems: "center" }}>
           <Image
             source={{ uri: selectedImage.localUri }}
             style={styles.thumbnail}
@@ -90,8 +98,9 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   thumbnail: {
+    margin: 20,
     width: 300,
     height: 300,
-    resizeMode: "contain",
+    resizeMode: "cover",
   },
 });
